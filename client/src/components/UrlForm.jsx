@@ -3,16 +3,25 @@ import axios from "axios";
 
 export default function UrlForm({ setShortUrl, setShortId }) {
   const [url, setUrl] = useState("");
+  const [expiresIn, setExpiresIn] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    const res = await axios.post("http://localhost:3000/shorten", {
-      url,
-    });
+    if (!url) return;
+    setLoading(true);
+    try {
+      const res = await axios.post("http://localhost:3000/shorten", {
+        url,
+        expiresIn: expiresIn ? parseInt(expiresIn) : null,
+      });
 
-    setShortUrl(res.data.shortUrl);
-
-    const id = res.data.shortUrl.split("/").pop();
-    setShortId(id);
+      setShortUrl(res.data.shortUrl);
+      const id = res.data.shortUrl.split("/").pop();
+      setShortId(id);
+    } catch (error) {
+      alert("Error shortening URL");
+    }
+    setLoading(false);
   };
 
   return (
@@ -25,11 +34,24 @@ export default function UrlForm({ setShortUrl, setShortId }) {
         onChange={(e) => setUrl(e.target.value)}
       />
 
+      <select
+        value={expiresIn}
+        onChange={(e) => setExpiresIn(e.target.value)}
+        className="mt-3 w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">No expiration</option>
+        <option value="1">1 hour</option>
+        <option value="24">24 hours</option>
+        <option value="168">7 days</option>
+        <option value="720">30 days</option>
+      </select>
+
       <button
         onClick={handleSubmit}
-        className="mt-4 w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700"
+        disabled={loading || !url}
+        className="mt-4 w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 disabled:bg-gray-400"
       >
-        Shorten URL
+        {loading ? "Shortening..." : "Shorten URL"}
       </button>
     </div>
   );

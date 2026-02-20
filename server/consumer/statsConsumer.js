@@ -21,8 +21,15 @@ await consumer.run({
   eachMessage: async ({ message }) => {
     const data = JSON.parse(message.value.toString());
     await Stats.create({
-      data,
+      shortId: data.shortId,
+      timestamp: new Date(data.timestamp),
+      ip: data.ip,
+      userAgent: data.userAgent,
+      referrer: data.referrer,
+      browser: data.browser,
+      os: data.os,
+      device: data.device,
     });
-    console.log(" saved stats");
+    console.log("Saved stats for:", data.shortId);
   },
 });

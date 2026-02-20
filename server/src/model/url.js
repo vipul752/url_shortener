@@ -5,6 +5,7 @@ const urlSchema = new mongoose.Schema({
   originalUrl: String,
   clicks: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
+  expiresAt: { type: Date, default: null },
 });
 
 const Url = mongoose.model("Url", urlSchema);
