@@ -8,15 +8,15 @@ export default function App() {
   const [shortId, setShortId] = useState("");
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center p-10">
-      <h1 className="text-4xl font-bold mb-8">🚀 URL Shortener</h1>
+    <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col items-center p-10">
+      <h1 className="text-3xl font-semibold mb-8">URL Shortener</h1>
 
       <UrlForm setShortUrl={setShortUrl} setShortId={setShortId} />
 
       {shortUrl && (
-        <div className="mt-6">
-          <p className="text-lg">Short URL:</p>
-          <a href={shortUrl} className="text-blue-400">
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-500">Short URL:</p>
+          <a href={shortUrl} className="text-blue-600 hover:underline">
             {shortUrl}
           </a>
           <QRCodeBox url={shortUrl} />
