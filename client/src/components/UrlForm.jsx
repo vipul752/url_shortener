@@ -1,7 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://url-shortener-2qnh.onrender.com";
 
 export default function UrlForm({ setShortUrl, setPreviewData }) {
   const [url, setUrl] = useState("");

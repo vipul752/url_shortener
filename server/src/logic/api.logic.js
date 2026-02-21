@@ -225,7 +225,7 @@ const redirectUrl = async (req, res) => {
 
     if (hasPassword) {
       return res.redirect(
-        `${process.env.CLIENT_URL || "http://localhost:5173"}/password/${shortId}`,
+        `${process.env.CLIENT_URL || "https://url-shortener-lilac-five.vercel.app"}/password/${shortId}`,
       );
     }
 
