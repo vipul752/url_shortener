@@ -10,10 +10,13 @@ export default function UrlForm({ setShortUrl }) {
     if (!url) return;
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:3000/shorten", {
-        url,
-        expiresIn: expiresIn ? parseInt(expiresIn) : null,
-      });
+      const res = await axios.post(
+        "https://url-shortener-2qnh.onrender.com/shorten",
+        {
+          url,
+          expiresIn: expiresIn ? parseInt(expiresIn) : null,
+        },
+      );
 
       setShortUrl(res.data.shortUrl);
     } catch (error) {
