@@ -34,7 +34,7 @@ const fetchLinkPreview = async (url) => {
 
 const shortenUrl = async (req, res) => {
   try {
-    const { url, expiresIn, password, customAlias, userId } = req.body;
+    const { url, expiresIn, password, customAlias } = req.body;
 
     if (!url) {
       return res.status(400).json({ error: "URL is required" });
@@ -45,12 +45,10 @@ const shortenUrl = async (req, res) => {
     if (customAlias) {
       // Validate custom alias (alphanumeric, dashes, underscores only)
       if (!/^[a-zA-Z0-9_-]+$/.test(customAlias)) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Custom alias can only contain letters, numbers, dashes, and underscores",
-          });
+        return res.status(400).json({
+          error:
+            "Custom alias can only contain letters, numbers, dashes, and underscores",
+        });
       }
       if (customAlias.length < 3 || customAlias.length > 20) {
         return res
@@ -80,7 +78,7 @@ const shortenUrl = async (req, res) => {
       shortUrl: shortId,
       originalUrl: url,
       customAlias: customAlias || null,
-      userId: userId || null,
+      userId: req.user?.id || null,
       expiresAt,
       password: password || null,
       title: preview.title,
@@ -123,6 +121,7 @@ const bulkShortenUrl = async (req, res) => {
           await URL.create({
             shortUrl: shortId,
             originalUrl: url,
+            userId: req.user?.id || null,
             title: preview.title,
             image: preview.image,
           });
@@ -286,12 +285,8 @@ const redirectUrl = async (req, res) => {
 // Get all links for a user (Dashboard)
 const getUserLinks = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     const { sortBy = "createdAt", order = "desc" } = req.query;
-
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
 
     const sortOrder = order === "asc" ? 1 : -1;
     const sortField = sortBy === "clicks" ? "clicks" : "createdAt";
@@ -334,10 +329,18 @@ const getLinkAnalytics = async (req, res) => {
   try {
     const { shortId } = req.params;
     const { days = 30 } = req.query;
+    const userId = req.user.id;
 
     const urlEntry = await URL.findOne({ shortUrl: shortId });
     if (!urlEntry) {
       return res.status(404).json({ error: "URL not found" });
+    }
+
+    // Verify ownership
+    if (urlEntry.userId !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to view this link's analytics" });
     }
 
     // Calculate clicks per day for the chart
@@ -392,15 +395,15 @@ const getLinkAnalytics = async (req, res) => {
 const deleteLink = async (req, res) => {
   try {
     const { shortId } = req.params;
-    const { userId } = req.body;
+    const userId = req.user.id;
 
     const urlEntry = await URL.findOne({ shortUrl: shortId });
     if (!urlEntry) {
       return res.status(404).json({ error: "URL not found" });
     }
 
-    // Optional: verify ownership
-    if (userId && urlEntry.userId !== userId) {
+    // Verify ownership
+    if (urlEntry.userId !== userId) {
       return res
         .status(403)
         .json({ error: "Not authorized to delete this link" });

@@ -7,7 +7,6 @@ const API_URL =
 export default function UrlForm({
   setShortUrl,
   setPreviewData,
-  userId,
   onLinkCreated,
 }) {
   const [url, setUrl] = useState("");
@@ -22,13 +21,16 @@ export default function UrlForm({
     setLoading(true);
     setError("");
     try {
-      const res = await axios.post(`${API_URL}/shorten`, {
-        url,
-        expiresIn: expiresIn ? parseInt(expiresIn) : null,
-        password: password || null,
-        customAlias: customAlias || null,
-        userId: userId || null,
-      });
+      const res = await axios.post(
+        `${API_URL}/shorten`,
+        {
+          url,
+          expiresIn: expiresIn ? parseInt(expiresIn) : null,
+          password: password || null,
+          customAlias: customAlias || null,
+        },
+        { withCredentials: true },
+      );
 
       setShortUrl(res.data.shortUrl);
       setPreviewData({

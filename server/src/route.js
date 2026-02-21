@@ -9,19 +9,20 @@ import {
   getLinkAnalytics,
   deleteLink,
 } from "./logic/api.logic.js";
+import { authMiddleware, optionalAuth } from "./middleware/auth.middleware.js";
 // import { rateLimitMiddleware } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-router.post("/shorten", shortenUrl);
-router.post("/bulk-shorten", bulkShortenUrl);
+router.post("/shorten", optionalAuth, shortenUrl);
+router.post("/bulk-shorten", optionalAuth, bulkShortenUrl);
 router.get("/info/:shortId", getUrlInfo);
 router.post("/verify/:shortId", verifyPassword);
 
-// Dashboard & Analytics routes
-router.get("/user/:userId/links", getUserLinks);
-router.get("/analytics/:shortId", getLinkAnalytics);
-router.delete("/link/:shortId", deleteLink);
+// Dashboard & Analytics routes (protected)
+router.get("/my-links", authMiddleware, getUserLinks);
+router.get("/analytics/:shortId", authMiddleware, getLinkAnalytics);
+router.delete("/link/:shortId", authMiddleware, deleteLink);
 
 router.get("/:shortId", redirectUrl);
 

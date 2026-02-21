@@ -1,7 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://url-shortener-2qnh.onrender.com";
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://url-shortener-2qnh.onrender.com";
 
 export default function BulkUpload() {
   const [results, setResults] = useState([]);
@@ -34,7 +35,11 @@ export default function BulkUpload() {
         return;
       }
 
-      const res = await axios.post(`${API_URL}/bulk-shorten`, { urls });
+      const res = await axios.post(
+        `${API_URL}/bulk-shorten`,
+        { urls },
+        { withCredentials: true },
+      );
       setResults(res.data.results);
     } catch (err) {
       setError("Error processing URLs");

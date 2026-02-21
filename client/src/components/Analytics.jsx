@@ -41,6 +41,7 @@ export default function Analytics({ shortId, onBack }) {
       try {
         const res = await axios.get(
           `${API_URL}/analytics/${shortId}?days=${days}`,
+          { withCredentials: true },
         );
         setAnalytics(res.data);
       } catch (error) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
+import axios from "axios";
 import UrlForm from "./components/UrlForm";
 import QRCodeBox from "./components/QRCodeBox";
 import BulkUpload from "./components/BulkUpload";
@@ -7,6 +7,10 @@ import LinkPreview from "./components/LinkPreview";
 import PasswordPage from "./components/PasswordPage";
 import LinkDashboard from "./components/LinkDashboard";
 import Analytics from "./components/Analytics";
+import AuthForm from "./components/AuthForm";
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://url-shortener-2qnh.onrender.com";
 
 export default function App() {
   const [shortUrl, setShortUrl] = useState("");
@@ -14,7 +18,8 @@ export default function App() {
   const [previewData, setPreviewData] = useState(null);
   const [activeTab, setActiveTab] = useState("single");
   const [passwordShortId, setPasswordShortId] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [analyticsShortId, setAnalyticsShortId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -25,14 +30,36 @@ export default function App() {
       setPasswordShortId(path.replace("/password/", ""));
     }
 
-    // Get or create userId from localStorage
-    let storedUserId = localStorage.getItem("urlShortenerUserId");
-    if (!storedUserId) {
-      storedUserId = uuidv4();
-      localStorage.setItem("urlShortenerUserId", storedUserId);
-    }
-    setUserId(storedUserId);
+    // Check if user is already logged in
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/me`, {
+        withCredentials: true,
+      });
+      setUser(res.data.user);
+    } catch (error) {
+      // User not logged in
+      setUser(null);
+    }
+    setAuthLoading(false);
+  };
+
+  const handleAuthSuccess = (userData) => {
+    setUser(userData);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
+      setUser(null);
+      setActiveTab("single");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   const copyToClipboard = async () => {
     await navigator.clipboard.writeText(shortUrl);
@@ -61,7 +88,38 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col items-center p-10">
-      <h1 className="text-3xl font-semibold mb-8">URL Shortener</h1>
+      {/* Header with auth */}
+      <div className="w-full max-w-4xl flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-semibold">URL Shortener</h1>
+        {!authLoading && (
+          <div className="flex items-center gap-3">
+            {user ? (
+              <>
+                <span className="text-sm text-gray-600">
+                  Hello, <span className="font-medium">{user.username}</span>
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setActiveTab("auth")}
+                className={`px-4 py-2 text-sm rounded ${
+                  activeTab === "auth"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                Login / Sign Up
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Tab Navigation */}
       <div className="flex gap-2 mb-6">
@@ -87,8 +145,12 @@ export default function App() {
         </button>
         <button
           onClick={() => {
-            setActiveTab("dashboard");
-            setAnalyticsShortId(null);
+            if (user) {
+              setActiveTab("dashboard");
+              setAnalyticsShortId(null);
+            } else {
+              setActiveTab("auth");
+            }
           }}
           className={`px-4 py-2 rounded ${
             activeTab === "dashboard" || activeTab === "analytics"
@@ -100,12 +162,15 @@ export default function App() {
         </button>
       </div>
 
+      {activeTab === "auth" && !user && (
+        <AuthForm onAuthSuccess={handleAuthSuccess} />
+      )}
+
       {activeTab === "single" && (
         <>
           <UrlForm
             setShortUrl={setShortUrl}
             setPreviewData={setPreviewData}
-            userId={userId}
             onLinkCreated={handleLinkCreated}
           />
 
@@ -130,6 +195,18 @@ export default function App() {
                 </p>
               )}
 
+              {!user && (
+                <p className="text-sm text-blue-600 mt-3">
+                  <button
+                    onClick={() => setActiveTab("auth")}
+                    className="underline hover:no-underline"
+                  >
+                    Login
+                  </button>{" "}
+                  to save this link to your dashboard
+                </p>
+              )}
+
               <LinkPreview
                 title={previewData?.title}
                 image={previewData?.image}
@@ -143,15 +220,14 @@ export default function App() {
 
       {activeTab === "bulk" && <BulkUpload />}
 
-      {activeTab === "dashboard" && (
+      {activeTab === "dashboard" && user && (
         <LinkDashboard
-          userId={userId}
           onViewAnalytics={handleViewAnalytics}
           refreshTrigger={refreshTrigger}
         />
       )}
 
-      {activeTab === "analytics" && analyticsShortId && (
+      {activeTab === "analytics" && analyticsShortId && user && (
         <Analytics
           shortId={analyticsShortId}
           onBack={handleBackFromAnalytics}

@@ -4,11 +4,7 @@ import axios from "axios";
 const API_URL =
   import.meta.env.VITE_API_URL || "https://url-shortener-2qnh.onrender.com";
 
-export default function LinkDashboard({
-  userId,
-  onViewAnalytics,
-  refreshTrigger,
-}) {
+export default function LinkDashboard({ onViewAnalytics, refreshTrigger }) {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState("createdAt");
@@ -17,11 +13,11 @@ export default function LinkDashboard({
   const [copiedId, setCopiedId] = useState(null);
 
   const fetchLinks = async () => {
-    if (!userId) return;
     setLoading(true);
     try {
       const res = await axios.get(
-        `${API_URL}/user/${userId}/links?sortBy=${sortBy}&order=${order}`,
+        `${API_URL}/my-links?sortBy=${sortBy}&order=${order}`,
+        { withCredentials: true },
       );
       setLinks(res.data.links);
       setTotalClicks(res.data.totalClicks);
@@ -33,13 +29,13 @@ export default function LinkDashboard({
 
   useEffect(() => {
     fetchLinks();
-  }, [userId, sortBy, order, refreshTrigger]);
+  }, [sortBy, order, refreshTrigger]);
 
   const handleDelete = async (shortId) => {
     if (!confirm("Are you sure you want to delete this link?")) return;
     try {
       await axios.delete(`${API_URL}/link/${shortId}`, {
-        data: { userId },
+        withCredentials: true,
       });
       fetchLinks();
     } catch (error) {
