@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import urlRoutes from "./route.js";
+import userRoutes from "./user.route.js";
 
 dotenv.config();
 
@@ -11,6 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/", urlRoutes);
+app.use("/auth", userRoutes);
 
 // Connect DB
 await connectDB();

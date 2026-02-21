@@ -34,13 +34,40 @@ const fetchLinkPreview = async (url) => {
 
 const shortenUrl = async (req, res) => {
   try {
-    const { url, expiresIn, password } = req.body;
+    const { url, expiresIn, password, customAlias, userId } = req.body;
 
     if (!url) {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    const shortId = nanoid(6);
+    // Check if custom alias is provided and valid
+    let shortId;
+    if (customAlias) {
+      // Validate custom alias (alphanumeric, dashes, underscores only)
+      if (!/^[a-zA-Z0-9_-]+$/.test(customAlias)) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Custom alias can only contain letters, numbers, dashes, and underscores",
+          });
+      }
+      if (customAlias.length < 3 || customAlias.length > 20) {
+        return res
+          .status(400)
+          .json({ error: "Custom alias must be 3-20 characters" });
+      }
+      // Check if alias is already taken
+      const existing = await URL.findOne({ shortUrl: customAlias });
+      if (existing) {
+        return res
+          .status(409)
+          .json({ error: "This custom alias is already taken" });
+      }
+      shortId = customAlias;
+    } else {
+      shortId = nanoid(6);
+    }
 
     let expiresAt = null;
     if (expiresIn && expiresIn > 0) {
@@ -49,9 +76,11 @@ const shortenUrl = async (req, res) => {
 
     const preview = await fetchLinkPreview(url);
 
-    await URL.create({
+    const newUrl = await URL.create({
       shortUrl: shortId,
       originalUrl: url,
+      customAlias: customAlias || null,
+      userId: userId || null,
       expiresAt,
       password: password || null,
       title: preview.title,
@@ -60,10 +89,12 @@ const shortenUrl = async (req, res) => {
 
     res.json({
       shortUrl: `${req.protocol}://${req.get("host")}/${shortId}`,
+      shortId,
       expiresAt,
       hasPassword: !!password,
       title: preview.title,
       image: preview.image,
+      createdAt: newUrl.createdAt,
     });
   } catch (error) {
     console.log(error);
@@ -164,7 +195,14 @@ const verifyPassword = async (req, res) => {
       return res.status(401).json({ error: "Incorrect password" });
     }
 
-    await URL.updateOne({ shortUrl: shortId }, { $inc: { clicks: 1 } });
+    await URL.updateOne(
+      { shortUrl: shortId },
+      {
+        $inc: { clicks: 1 },
+        $push: { clickHistory: { timestamp: new Date() } },
+        $set: { lastAccessedAt: new Date() },
+      },
+    );
 
     res.json({ originalUrl: urlEntry.originalUrl });
   } catch (error) {
@@ -229,7 +267,14 @@ const redirectUrl = async (req, res) => {
       );
     }
 
-    await URL.updateOne({ shortUrl: shortId }, { $inc: { clicks: 1 } });
+    await URL.updateOne(
+      { shortUrl: shortId },
+      {
+        $inc: { clicks: 1 },
+        $push: { clickHistory: { timestamp: new Date() } },
+        $set: { lastAccessedAt: new Date() },
+      },
+    );
 
     res.redirect(originalUrl);
   } catch (error) {
@@ -238,4 +283,146 @@ const redirectUrl = async (req, res) => {
   }
 };
 
-export { shortenUrl, redirectUrl, bulkShortenUrl, getUrlInfo, verifyPassword };
+// Get all links for a user (Dashboard)
+const getUserLinks = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { sortBy = "createdAt", order = "desc" } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    const sortOrder = order === "asc" ? 1 : -1;
+    const sortField = sortBy === "clicks" ? "clicks" : "createdAt";
+
+    const links = await URL.find({ userId })
+      .select(
+        "shortUrl originalUrl title image clicks createdAt lastAccessedAt expiresAt customAlias",
+      )
+      .sort({ [sortField]: sortOrder });
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const formattedLinks = links.map((link) => ({
+      shortId: link.shortUrl,
+      shortUrl: `${baseUrl}/${link.shortUrl}`,
+      originalUrl: link.originalUrl,
+      title: link.title,
+      image: link.image,
+      clicks: link.clicks,
+      createdAt: link.createdAt,
+      lastAccessedAt: link.lastAccessedAt,
+      expiresAt: link.expiresAt,
+      customAlias: link.customAlias,
+      isExpired: link.expiresAt ? new Date() > link.expiresAt : false,
+    }));
+
+    res.json({
+      links: formattedLinks,
+      totalLinks: formattedLinks.length,
+      totalClicks: formattedLinks.reduce((sum, link) => sum + link.clicks, 0),
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Get analytics for a specific link
+const getLinkAnalytics = async (req, res) => {
+  try {
+    const { shortId } = req.params;
+    const { days = 30 } = req.query;
+
+    const urlEntry = await URL.findOne({ shortUrl: shortId });
+    if (!urlEntry) {
+      return res.status(404).json({ error: "URL not found" });
+    }
+
+    // Calculate clicks per day for the chart
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+    startDate.setHours(0, 0, 0, 0);
+
+    // Group clicks by date
+    const clicksByDate = {};
+    const clickHistory = urlEntry.clickHistory || [];
+
+    // Initialize all dates in range with 0 clicks
+    for (let i = 0; i <= parseInt(days); i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const dateKey = date.toISOString().split("T")[0];
+      clicksByDate[dateKey] = 0;
+    }
+
+    // Count clicks per date
+    clickHistory.forEach((click) => {
+      const clickDate = new Date(click.timestamp).toISOString().split("T")[0];
+      if (clicksByDate.hasOwnProperty(clickDate)) {
+        clicksByDate[clickDate]++;
+      }
+    });
+
+    // Convert to array for Chart.js
+    const chartData = Object.entries(clicksByDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, clicks]) => ({
+        date,
+        clicks,
+      }));
+
+    res.json({
+      shortId: urlEntry.shortUrl,
+      originalUrl: urlEntry.originalUrl,
+      title: urlEntry.title,
+      totalClicks: urlEntry.clicks,
+      createdAt: urlEntry.createdAt,
+      lastAccessedAt: urlEntry.lastAccessedAt,
+      chartData,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Delete a link
+const deleteLink = async (req, res) => {
+  try {
+    const { shortId } = req.params;
+    const { userId } = req.body;
+
+    const urlEntry = await URL.findOne({ shortUrl: shortId });
+    if (!urlEntry) {
+      return res.status(404).json({ error: "URL not found" });
+    }
+
+    // Optional: verify ownership
+    if (userId && urlEntry.userId !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to delete this link" });
+    }
+
+    await URL.deleteOne({ shortUrl: shortId });
+    await redisClient.del(shortId);
+
+    res.json({ message: "Link deleted successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+export {
+  shortenUrl,
+  redirectUrl,
+  bulkShortenUrl,
+  getUrlInfo,
+  verifyPassword,
+  getUserLinks,
+  getLinkAnalytics,
+  deleteLink,
+};
