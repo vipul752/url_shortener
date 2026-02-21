@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-export default function UrlForm({ setShortUrl, setShortId }) {
+export default function UrlForm({ setShortUrl }) {
   const [url, setUrl] = useState("");
   const [expiresIn, setExpiresIn] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,8 +16,6 @@ export default function UrlForm({ setShortUrl, setShortId }) {
       });
 
       setShortUrl(res.data.shortUrl);
-      const id = res.data.shortUrl.split("/").pop();
-      setShortId(id);
     } catch (error) {
       alert("Error shortening URL");
     }

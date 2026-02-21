@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
-import { connectProducer } from "./config/kafka.js";
 import urlRoutes from "./route.js";
 
 dotenv.config();
@@ -15,9 +14,6 @@ app.use("/", urlRoutes);
 
 // Connect DB
 await connectDB();
-
-// Connect Kafka
-await connectProducer();
 
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
