@@ -1,24 +1,30 @@
 import { useState } from "react";
 import axios from "axios";
 
-export default function UrlForm({ setShortUrl }) {
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+export default function UrlForm({ setShortUrl, setPreviewData }) {
   const [url, setUrl] = useState("");
   const [expiresIn, setExpiresIn] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     if (!url) return;
     setLoading(true);
     try {
-      const res = await axios.post(
-        "https://url-shortener-2qnh.onrender.com/shorten",
-        {
-          url,
-          expiresIn: expiresIn ? parseInt(expiresIn) : null,
-        },
-      );
+      const res = await axios.post(`${API_URL}/shorten`, {
+        url,
+        expiresIn: expiresIn ? parseInt(expiresIn) : null,
+        password: password || null,
+      });
 
       setShortUrl(res.data.shortUrl);
+      setPreviewData({
+        title: res.data.title,
+        image: res.data.image,
+        hasPassword: res.data.hasPassword,
+      });
     } catch (error) {
       alert("Error shortening URL");
     }
@@ -33,6 +39,14 @@ export default function UrlForm({ setShortUrl }) {
         className="w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
+      />
+
+      <input
+        type="password"
+        placeholder="Password (optional)"
+        className="mt-3 w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
       />
 
       <select
