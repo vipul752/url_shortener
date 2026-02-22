@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const generateToken = (user) =>
   jwt.sign(
     { id: user._id, email: user.email, username: user.username },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     {
       expiresIn: "24h",
     },
@@ -22,13 +22,7 @@ const register = async (req, res) => {
     req.body.role = "user";
     const user = await User.create({ ...req.body, password: hashedPassword });
 
-    const token = jwt.sign(
-      { id: user._id, email: user.email, username: user.username },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "24h",
-      },
-    );
+    const token = generateToken(user);
 
     const reply = {
       username: user.username,
